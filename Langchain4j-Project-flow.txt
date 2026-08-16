@@ -1,0 +1,233 @@
+Langchin4J ==>
+
+When you switched to LangChain4j instead of Spring AI, and wrote this explicit manual method block in AiConfig.java:
+
+
+// 1. Inject the parsed placeholder property string value straight into this field variable
+    @Value("${MISTRAL_API_KEY}")
+    private String mistralApiKey;
+ @Bean
+    public MistralAiChatModel chatLanguageModel() {
+        // 2. Feed the injected property token value safely into your builder client setup
+        return MistralAiChatModel.builder()
+                .apiKey(this.mistralApiKey)
+                .modelName("mistral-small-latest")
+                .temperature(0.0)
+                .build();
+    }
+	
+	
+The moment we mark a method with @Bean, we are telling Spring Boot: "Step aside. Do not use your automatic starter code. I am manually taking over the creation of this specific object myself".
+
+Because you are constructing the object manually using the .builder() pattern inside a custom Java method, LangChain4j has no way to guess what properties are sitting in your application.properties file unless you explicitly pass them to the .apiKey() method string. Leaving it blank or unmapped causes the initialization failure.
+
+
+I have configure the API key and value at Envioronment level in Eclipse IDE
+MISTRAL_API_KEY
+jMVy8MDUFBRmp1qArMn7TAvzGi09CwK8
+
+
+corresponding placeholder has been defined in application.properties file
+spring.application.name=SpringAIProject
+
+# Define the free-tier model name
+spring.ai.mistralai.chat.options.model=mistral-small
+
+# Points Spring to read the key from your Eclipse environment variables
+spring.ai.mistralai.api-key=${MISTRAL_API_KEY}
+
+
+
+Controller
+    |
+    | calls
+    v
+Assistant (interface)
+    |
+    | implemented dynamically by
+    v
+LangChain4j AI Service Proxy
+    |
+    | uses
+    v
+MistralAiChatModel client
+    |
+    | makes HTTPS request with API key
+    v
+Mistral Cloud LLM
+    |
+    | returns JSON response
+    v
+LangChain4j converts response into Java String
+    |
+    v
+Controller receives result
+
+
+LangChain4j creates the dynamic proxy and uses the created mistreal client object and System tools object
+
+public interface Assistant {
+    String chat(String message);
+}
+
+during boots up it internally created the implmented class of Assistant interface and while creating it injected the required mistral client and system tools.
+
+It makes this Assistant object readily avaialable at spring context during bootsup only, so it is ready to take the request
+
+assistant.chat(userMessage);, so the Assistant proxy implmented taken the request, like this 
+
+ LangChain4j prepares the LLM request
+
+Now the first real communication happens.
+
+LangChain4j creates a request containing:
+
+User message:
+"Check CPU usage"
+
+Available tools:
+- getCpuUsage()
+- getFreeDiskSpace(path)
+
+It converts this information into the JSON format expected by the Mistral API.
+
+Then The Mistral API call happens
+
+The Mistral client now makes an HTTPS request:
+
+Java Application
+       |
+       | HTTPS + API Key
+       |
+       v
+Mistral Cloud
+
+The API key is sent in the HTTP authorization header
+
+This is how Mistral AI knows:
+
+who you are
+whether you have permission
+which account to charge usage to
+
+Mistral decides whether to call a tool
+
+The model reads:
+
+User: "Check CPU usage"
+
+Available tools:
+getCpuUsage()
+
+It thinks:
+
+I cannot know the CPU usage of this machine, but I have a tool available.
+
+So it returns a special response:
+
+Call getCpuUsage()  It does NOT return a final English answer yet.
+
+LangChain4j executes your Java method
+
+The proxy receives the tool request.
+
+It locates your bean:
+
+SystemTools
+
+and executes:
+
+getCpuUsage()
+
+Your Java code runs:
+
+OperatingSystemMXBean
+        |
+        v
+Operating System
+        |
+        v
+Real CPU usage
+
+For example:
+
+23.5%
+10. LangChain
+
+LangChain4j calls Mistral a second time
+
+This is very important.
+
+A tool conversation usually requires two LLM API calls.
+
+First call
+Question:
+Check CPU usage
+
+Result:
+Please execute getCpuUsage()
+
+Tool execution
+Java executes getCpuUsage()
+
+Result:
+23.5%
+
+Second call
+
+LangChain4j sends:
+
+The tool getCpuUsage returned 23.5
+
+back to Mistral.
+
+Mistral generates the human response
+
+Now Mistral has everything:
+
+User question
++
+Tool result
+
+It writes something like:
+
+The current CPU usage is 23.5%, which indicates the server is running normally.
+
+This text is returned as JSON over HTTPS.
+
+The response comes back to your controller
+
+The flow is reversed:
+
+Mistral API
+     |
+     v
+MistralAiChatModel
+     |
+     v
+LangChain4j Proxy
+     |
+     v
+assistant.chat()
+     |
+     v
+String aiResponse
+     |
+     v
+ChatController
+
+So this line:
+
+String aiResponse = assistant.chat(userPrompt);
+
+looks simple, but internally it may have performed:
+
+HTTP call #1 to Mistral
+          |
+          v
+Tool execution
+          |
+          v
+HTTP call #2 to Mistral
+
+and then finally returns a java string
