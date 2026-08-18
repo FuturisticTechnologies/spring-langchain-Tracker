@@ -9,7 +9,7 @@
 	</parent>
 
 	<groupId>com.example</groupId>
-	<artifactId>aidemo</artifactId>
+	<artifactId>spring-langchain4j-resourceTracker</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>SpringLangchain4j-Project</name>
 	<description>Sample spring Langchain4J project</description>

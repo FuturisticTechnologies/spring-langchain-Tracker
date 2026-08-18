@@ -22,22 +22,6 @@ The moment we mark a method with @Bean, we are telling Spring Boot: "Step aside.
 Because you are constructing the object manually using the .builder() pattern inside a custom Java method, LangChain4j has no way to guess what properties are sitting in your application.properties file unless you explicitly pass them to the .apiKey() method string. Leaving it blank or unmapped causes the initialization failure.
 
 
-I have configure the API key and value at Envioronment level in Eclipse IDE
-MISTRAL_API_KEY
-jMVy8MDUFBRmp1qArMn7TAvzGi09CwK8
-
-
-corresponding placeholder has been defined in application.properties file
-spring.application.name=SpringAIProject
-
-# Define the free-tier model name
-spring.ai.mistralai.chat.options.model=mistral-small
-
-# Points Spring to read the key from your Eclipse environment variables
-spring.ai.mistralai.api-key=${MISTRAL_API_KEY}
-
-
-
 Controller
     |
     | calls
@@ -231,3 +215,20 @@ Tool execution
 HTTP call #2 to Mistral
 
 and then finally returns a java string
+
+
+I configure the API key and value at Envioronment level in Eclipse IDE
+MISTRAL_API_KEY
+jMVy8MDUFBRmp1qArMn7TAvzGi09CwK8
+
+corresponding placeholder has been defined in application.properties file
+spring.application.name=SpringAIProject
+
+# Define the free-tier model name
+spring.ai.mistralai.chat.options.model=mistral-small
+
+# Points Spring to read the key from your Eclipse environment variables
+spring.ai.mistralai.api-key=${MISTRAL_API_KEY}
+
+MISTRAL_API_KEY
+jMVy8MDUFBRmp1qArMn7TAvzGi09CwK8
